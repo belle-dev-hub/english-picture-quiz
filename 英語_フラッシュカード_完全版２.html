@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英語ピクチャーカード＆ミッシングゲーム</title>
+  <!-- Tailwind CSS (安定版) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Kiwi+Maru:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons (超安定CDNバージョン) -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+  <style>
+    body {
+      font-family: 'Fredoka', 'Kiwi Maru', sans-serif;
+      background-color: #f0fdf4; /* 優しいグリーンの背景 */
+    }
+    .card-transition {
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* カードが裏返るアニメーション */
+    .perspective {
+      perspective: 1000px;
+    }
+    .card-inner {
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
+    }
+    .card-flipped {
+      transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      backface-visibility: hidden;
+    }
+    .card-back {
+      transform: rotateY(180deg);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 md:p-6 select-none">
+
+  <!-- ヘッダー部分 -->
+  <header class="text-center mb-3">
+    <div class="inline-flex items-center gap-2 bg-white px-6 py-2 rounded-full shadow-md border-4 border-green-300">
+      <span class="text-2xl md:text-3xl">🎮</span>
+      <h1 class="text-xl md:text-2xl font-bold text-green-700 tracking-wide">English Card Game</h1>
+      <span class="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">Custom Edition</span>
+    </div>
+  </header>
+
+  <!-- ⚙️ 設定・カード編集コントロールセンター（開閉式アコーディオン） -->
+  <section class="max-w-5xl mx-auto w-full mb-3 bg-white rounded-2xl border-4 border-green-300 shadow-sm overflow-hidden">
+    <!-- タブヘッダー -->
+    <button onclick="toggleSetupPanel()" class="w-full flex items-center justify-between bg-green-50 px-4 md:px-6 py-3 hover:bg-green-100 transition">
+      <div class="flex items-center gap-2 text-green-800 font-bold">
+        <i data-lucide="settings" class="w-5 h-5 text-green-600 animate-spin-slow"></i>
+        <span class="text-sm md:text-base">⚙️ カードの設定・枚数変更・中身の編集（ここを押して開閉）</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="activeCountBadge" class="bg-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">表示中: 8枚</span>
+        <i id="setupAngleIcon" data-lucide="chevron-down" class="w-5 h-5 text-green-700 transition-transform"></i>
+      </div>
+    </button>
+
+    <!-- 設定パネル中身 (初期状態は閉じている) -->
+    <div id="setupPanel" class="hidden border-t-2 border-green-200 p-4 bg-gray-50/50">
+      
+      <!-- 設定コントローラー -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-200">
+        <!-- 左側: カード操作 -->
+        <div class="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200 flex flex-col justify-between gap-3">
+          <h3 class="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            カードの追加と表示切り替え
+          </h3>
+          <div class="flex flex-wrap gap-2">
+            <!-- 新規追加ボタン -->
+            <button onclick="addNewCard()" class="flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-lg text-xs shadow-sm transition active:scale-95">
+              <span>＋ 新しいカードを追加</span>
+            </button>
+            <!-- プリセット・すべて切り替え -->
+            <button onclick="setAllActive(true)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold px-3 py-2.5 rounded-lg text-xs transition">
+              すべて表示する
+            </button>
+            <button onclick="setAllActive(false)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold px-3 py-2.5 rounded-lg text-xs transition">
+              すべて非表示
+            </button>
+          </div>
+        </div>
+
+        <!-- 右側: データのリセット・クリア操作 -->
+        <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200 flex flex-col justify-between gap-3">
+          <h3 class="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            データのリセット・登録画像のクリア
+          </h3>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <!-- 設定リセットボタン -->
+            <button onclick="resetToDefaultData()" class="flex-1 flex items-center justify-center gap-1.5 bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 rounded-lg text-xs border border-red-300 transition">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+              <span>中身をデフォルト(8枚)に戻す</span>
+            </button>
+            <!-- 🧹 登録画像クリアボタン -->
+            <button onclick="clearAllRegisteredImages()" class="flex-1 flex items-center justify-center gap-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold py-2 rounded-lg text-xs border border-amber-300 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              <span>🧹 登録画像をすべてクリア</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🖼 [新機能] 画像の一括登録エリア -->
+      <div class="bg-indigo-50/60 p-4 rounded-xl border border-indigo-200 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="text-xs text-indigo-900 leading-relaxed">
+          <p class="font-bold flex items-center gap-1.5 mb-1"><i data-lucide="image" class="w-4 h-4"></i>画像を一括登録</p>
+          <p class="text-indigo-600">複数の写真をまとめて選ぶと、下のリストの<b>上から順番</b>に自動でセットされます（すでに登録済みの写真は上書きされます）。</p>
+        </div>
+        <label class="flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-lg text-xs shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <span>🖼 まとめて写真を選ぶ</span>
+          <input type="file" accept="image/*" multiple class="hidden" onchange="handleBulkImageUpload(event)">
+        </label>
+      </div>
+
+      <!-- カードリストテーブル (高機能レイアウト版) -->
+      <div class="overflow-x-auto max-h-[350px] overflow-y-auto rounded-lg border border-gray-200 bg-white">
+        <table class="w-full text-left border-collapse text-xs md:text-sm">
+          <thead>
+            <tr class="bg-green-100 text-green-900 font-bold sticky top-0 z-10">
+              <th class="p-2.5 text-center w-12">使う</th>
+              <th class="p-2.5 w-16 text-center">画像</th>
+              <th class="p-2.5">英語フレーズ</th>
+              <th class="p-2.5 w-16">絵文字</th>
+              <th class="p-2.5 w-24 text-center">クイズ設定</th>
+              <th class="p-2.5 w-32">画像の個別登録</th>
+              <th class="p-2.5 text-center w-16">削除</th>
+            </tr>
+          </thead>
+          <tbody id="setupTableBody">
+            <!-- JSで各カードの入力フォームを生成します -->
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-[11px] text-gray-400 mt-2 text-right">
+        ※ 編集した中身や追加したカードは、お使いのブラウザに自動で保存されます。
+      </p>
+    </div>
+  </section>
+
+  <!-- 🎨 クイズエフェクトコントロールパネル（モザイク＆スポットライト） -->
+  <section class="max-w-5xl mx-auto w-full mb-4 bg-white rounded-xl border-2 border-green-200 px-4 py-2.5 shadow-sm flex flex-wrap items-center justify-center gap-2.5 md:gap-4">
+    <div class="flex items-center gap-1.5 text-green-800 font-bold text-xs md:text-sm">
+      <i data-lucide="sparkles" class="w-4 h-4 text-green-600"></i>
+      <span>🌟 一括エフェクト:</span>
+    </div>
+    
+    <!-- 一括モザイク -->
+    <button onclick="cycleMosaicAll()" id="mosaicBtn" class="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs md:text-sm border border-gray-300 transition active:scale-95 shadow-sm">
+      <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+      <span id="mosaicLabel">一括モザイク：なし</span>
+    </button>
+
+    <!-- 一括スポットライト -->
+    <button onclick="toggleSpotlightAll()" id="spotlightBtn" class="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs md:text-sm border border-gray-300 transition active:scale-95 shadow-sm">
+      <i data-lucide="aperture" class="w-3.5 h-3.5"></i>
+      <span id="spotlightLabel">一括スポット：OFF</span>
+    </button>
+
+    <!-- 一括うずまき -->
+    <button onclick="cycleSwirlAll()" id="swirlBtn" class="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-xl text-xs md:text-sm border border-gray-300 transition active:scale-95 shadow-sm">
+      <i data-lucide="wind" class="w-3.5 h-3.5"></i>
+      <span id="swirlLabel">一括うずまき：なし</span>
+    </button>
+
+    <div class="h-6 w-px bg-gray-300 hidden md:block"></div>
+
+    <!-- ランダム：よわいクイズ -->
+    <button onclick="randomizeAllEffects(1)" class="flex items-center gap-1.5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs md:text-sm transition active:scale-95 shadow-md">
+      <i data-lucide="dices" class="w-4 h-4"></i>
+      <span>🎲 クイズ (よわい)</span>
+    </button>
+
+    <!-- ランダム：つよいクイズ -->
+    <button onclick="randomizeAllEffects(2)" class="flex items-center gap-1.5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs md:text-sm transition active:scale-95 shadow-md">
+      <i data-lucide="dices" class="w-4 h-4"></i>
+      <span>🎲 クイズ (つよい)</span>
+    </button>
+  </section>
+
+  <!-- メインコンテンツ：カードグリッド -->
+  <main class="flex-grow flex items-center justify-center max-w-6xl mx-auto w-full my-2">
+    <div id="cardGrid" class="grid gap-4 w-full">
+    </div>
+  </main>
+
+  <!-- コントロールパネル -->
+  <footer class="bg-white rounded-2xl shadow-lg border-4 border-green-200 p-4 mt-4 max-w-4xl mx-auto w-full">
+    <div class="flex flex-wrap items-center justify-center gap-3 md:gap-4">
+      
+      <!-- ① シャッフルボタン -->
+      <button onclick="shuffleCards()" class="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold px-6 py-3.5 rounded-xl shadow-md transform hover:scale-105 active:scale-95 transition text-base md:text-lg">
+        <i data-lucide="shuffle" class="w-5 h-5"></i>
+        <span>ならびかえ (Shuffle)</span>
+      </button>
+
+      <!-- ② 1枚消すボタン -->
+      <button onclick="hideRandomCard()" class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold px-6 py-3.5 rounded-xl shadow-md transform hover:scale-105 active:scale-95 transition text-base md:text-lg">
+        <i data-lucide="eye-off" class="w-5 h-5"></i>
+        <span>1枚きえる (Hide 1)</span>
+      </button>
+
+      <!-- 全部元に戻すボタン -->
+      <button onclick="resetAllCards()" class="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold px-5 py-3.5 rounded-xl shadow-md transform hover:scale-105 active:scale-95 transition text-base md:text-lg">
+        <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+        <span>ぜんぶ戻す (Reset)</span>
+      </button>
+
+      <div class="h-8 w-px bg-gray-300 hidden md:block"></div>
+
+      <!-- 文字表示/非表示スイッチ -->
+      <button onclick="toggleTextVisibility()" id="textToggleBtn" class="flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold px-5 py-3.5 rounded-xl border-2 border-purple-300 transition text-sm md:text-base">
+        <i data-lucide="type" class="w-5 h-5"></i>
+        <span id="textToggleLabel">文字：だす</span>
+      </button>
+
+      <!-- 一斉読み上げボタン -->
+      <button onclick="playAllAudios()" class="flex items-center gap-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 font-bold px-4 py-3.5 rounded-xl border-2 border-pink-200 transition text-sm md:text-base" title="すべてのカードを順番に自動で読み上げます">
+        <i data-lucide="volume-2" class="w-5 h-5"></i>
+        <span>順番によむ</span>
+      </button>
+
+    </div>
+    
+    <div id="toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full text-sm font-semibold shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50 flex items-center gap-2">
+      <span id="toastText">メッセージ</span>
+    </div>
+  </footer>
+
+  <!-- 🔍 拡大（ズームイン）表示用のモーダル -->
+  <div id="zoomModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden opacity-0 transition-all duration-300" onclick="closeZoomModal()">
+    
+    <!-- ◀ 前のカードボタン -->
+    <button onclick="navigateZoom(-1); event.stopPropagation();" class="absolute left-2 md:left-8 bg-white/10 hover:bg-white/30 text-white p-3.5 rounded-full shadow-lg transition active:scale-90 z-50 border border-white/20">
+      <i data-lucide="chevron-left" class="w-8 h-8 md:w-10 md:h-10"></i>
+    </button>
+
+    <div class="bg-white rounded-3xl p-6 max-w-2xl w-[88%] max-h-[92vh] flex flex-col justify-between shadow-2xl relative transform scale-95 transition-all duration-300" onclick="event.stopPropagation()">
+      <!-- 💡 [不具合修正]: 重なり順(z-index)を z-30 に引き上げ、さらにバブリング防止を追加したことで、確実に一発で閉じられるように改善しました！ -->
+      <button onclick="closeZoomModal(); event.stopPropagation();" class="absolute -top-3 -right-3 md:top-4 md:right-4 bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full shadow-lg transition active:scale-90 z-30">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+      
+      <!-- 画像・絵文字コンテナ (ボタン類が暗闇やボケに巻き込まれない最前面レイヤー構造に再設計) -->
+      <div id="zoomImgContainer" class="w-full flex-grow flex items-center justify-center overflow-hidden bg-gray-50 rounded-2xl p-4 min-h-[280px] md:min-h-[380px] relative transition-colors duration-300">
+        
+        <!-- 💡 映像コンテンツ専用ラッパー (このエリアにだけボケやスポットライトの背景黒を適用) -->
+        <div id="zoomContentWrapper" class="absolute inset-0 w-full h-full flex items-center justify-center transition-all duration-300 z-10">
+          <img id="zoomImg" src="" alt="" class="max-w-full max-h-[50vh] object-contain rounded-lg hidden transition-all duration-300 card-transition">
+          <div id="zoomEmojiContainer" class="text-center hidden transition-all duration-300 card-transition">
+            <span id="zoomEmoji" class="text-8xl md:text-9xl block animate-pulse select-none transition-all duration-300"></span>
+          </div>
+        </div>
+        
+        <!-- 💡 各種操作UIは常に最前面(z-20)にくっきり浮かび上がらせる設計 -->
+        <!-- スポットライト中の操作案内ガイド -->
+        <div id="zoomSpotlightGuide" class="absolute top-4 left-4 bg-black/60 text-white px-3 py-1.5 rounded-lg text-xs pointer-events-none font-semibold hidden flex items-center gap-1.5 z-20">
+          <i data-lucide="hand" class="w-3.5 h-3.5 animate-bounce"></i>
+          <span>触って動かすと絵が見えるよ！</span>
+        </div>
+
+        <!-- 音声再生ボタン -->
+        <button id="zoomSpeakBtn" class="absolute bottom-4 right-4 bg-green-100 hover:bg-green-200 text-green-700 p-3.5 rounded-full shadow-md border-2 border-green-300 transition active:scale-90 flex items-center justify-center z-20" title="発音をきく">
+          <i data-lucide="volume-2" class="w-6 h-6"></i>
+        </button>
+
+        <!-- 🔓 クイズを解く（エフェクト解除）ボタン -->
+        <button id="zoomSolveBtn" class="absolute bottom-4 left-4 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-full shadow-md font-bold text-xs flex items-center gap-1 transition active:scale-95 z-20" title="エフェクトをはずして答えを表示">
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          <span>🔓 答えをだす (Answer)</span>
+        </button>
+      </div>
+      
+      <!-- 大きなテキスト表示 -->
+      <div id="zoomTextContainer" class="text-center mt-5 py-3 px-4 rounded-2xl bg-green-50 border-2 border-green-100 transition-all duration-300">
+        <h2 id="zoomText" class="text-green-900 font-extrabold text-2xl md:text-3xl lg:text-4xl tracking-wide"></h2>
+      </div>
+    </div>
+
+    <!-- ▶ 次のカードボタン -->
+    <button onclick="navigateZoom(1); event.stopPropagation();" class="absolute right-2 md:right-8 bg-white/10 hover:bg-white/30 text-white p-3.5 rounded-full shadow-lg transition active:scale-90 z-50 border border-white/20">
+      <i data-lucide="chevron-right" class="w-8 h-8 md:w-10 md:h-10"></i>
+    </button>
+
+  </div>
+
+  <script>
+    // デフォルトのカードセット (1.jpg 〜 8.jpg)
+    // 💡 [改善]: 実際の描画ロジックでは絵文字か個別登録写真(loadedSrc)しか使われず、
+    // img プロパティはどこからも参照されていない死んだコードだったため削除しました。
+    const defaultCards = [
+      { id: 1, text: 'play cards', emoji: '🃏', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 },
+      { id: 2, text: 'play fruit basket', emoji: '🧺🍎', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 },
+      { id: 3, text: 'play musical chairs', emoji: '🪑🎵', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 },
+      { id: 4, text: 'play drawing shiritori', emoji: '✏️🐙', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 },
+      { id: 5, text: 'play arm wrestling', emoji: '💪🔥', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 },
+      { id: 6, text: 'play telephone game', emoji: '🗣️💬', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 },
+      { id: 7, text: 'play tic-tac-toe', emoji: '⭕❌', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 },
+      { id: 8, text: 'play treasure hunt', emoji: '🗺️👑', isActive: true, loadedSrc: null, mosaic: 0, spotlight: false, swirl: 0 }
+    ];
+
+    let cards = [];
+    let hiddenCardIds = new Set();
+    let showText = true;
+    let isSetupOpen = false;
+    let mosaicLevel = 0; 
+    let isSpotlight = false; 
+    let swirlLevel = 0; 
+    let currentZoomCardId = null;
+    const processedImageCache = {};
+
+    // 🎵 Web Audio APIによる動的効果音エンジン (鉄壁の try-catch シールドを搭載)
+    const SoundEngine = {
+      ctx: null,
+      init() {
+        try {
+          if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch (e) {
+          console.warn("AudioContext block protected by SoundEngine:", e);
+        }
+      },
+      playSet() {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const ctx = this.ctx;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(150, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.3);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        } catch (e) {
+          console.warn("Sound playSet blocked:", e);
+        }
+      },
+      playSolve() {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const ctx = this.ctx;
+          const now = ctx.currentTime;
+          const osc1 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          osc1.type = 'triangle';
+          osc1.frequency.setValueAtTime(523.25, now);
+          gain1.gain.setValueAtTime(0.08, now);
+          gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+          osc1.connect(gain1);
+          gain1.connect(ctx.destination);
+          osc1.start();
+          osc1.stop(now + 0.15);
+          
+          setTimeout(() => {
+            try {
+              if (!this.ctx) return;
+              const osc2 = this.ctx.createOscillator();
+              const gain2 = this.ctx.createGain();
+              osc2.type = 'triangle';
+              osc2.frequency.setValueAtTime(783.99, this.ctx.currentTime);
+              gain2.gain.setValueAtTime(0.08, this.ctx.currentTime);
+              gain2.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+              osc2.connect(gain2);
+              gain2.connect(this.ctx.destination);
+              osc2.start();
+              osc2.stop(this.ctx.currentTime + 0.25);
+            } catch(ex) {}
+          }, 80);
+        } catch (e) {
+          console.warn("Sound playSolve blocked:", e);
+        }
+      }
+    };
+
+    // 💡 [不具合修正]: フレーズや絵文字欄に " や < > & などの記号が入ると
+    // input の value 属性やカード表示の innerHTML が途中で壊れてレイアウトが
+    // 崩れる問題があったため、画面に差し込む前に必ずエスケープするようにしました。
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function safeCreateIcons() {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        try { lucide.createIcons(); } catch (e) {}
+      }
+    }
+
+    // 📸 写真データを軽量化しつつ、縦横最大350pxのJPEGデータに瞬時にブラウザで超圧縮するエンジン
+    function resizeAndCompressImage(file, callback) {
+      const reader = new FileReader();
+      reader.onerror = function() {
+        callback(null);
+      };
+      reader.onload = function(e) {
+        const rawDataUrl = e.target.result;
+        const img = new Image();
+        img.onerror = function() {
+          callback(rawDataUrl);
+        };
+        img.onload = function() {
+          try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            let width = img.width;
+            let height = img.height;
+            const max_size = 350; 
+
+            if (width > height) {
+              if (width > max_size) {
+                height *= max_size / width;
+                width = max_size;
+              }
+            } else {
+              if (height > max_size) {
+                width *= max_size / height;
+                height = max_size;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.60);
+            callback(compressedBase64);
+          } catch(err) {
+            callback(rawDataUrl);
+          }
+        };
+        img.src = rawDataUrl;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function initApp() {
+      const savedData = localStorage.getItem('english_cards_v2');
+      // 💡 [不具合修正]: 以前は「id が 10 以上のカードがある」だけで旧データとみなして
+      // データを初期化していたため、先生がカードを9枚目・10枚目…と追加していくと
+      // 次回起動時に誤ってマイグレーション処理が発動し、追加・編集したカードが
+      // すべて上書き消去されてしまうバグがありました。
+      // 一度だけ実行するフラグ方式に変更し、二度と誤作動しないようにしています。
+      const migrationDone = localStorage.getItem('english_cards_migrated_v1') === 'true';
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          
+          // 移行(マイグレーション)処理:
+          // 古いID（10〜17）のセーブデータが残っている場合のみ、初回起動時に限り
+          // ID「1〜8」にマッピングし直す（保存カードが8枚以下＝旧仕様のときのみ対象）
+          const hasOldId = !migrationDone && parsed.length <= 8 && parsed.some(c => c.id >= 10);
+          if (hasOldId) {
+            cards = JSON.parse(JSON.stringify(defaultCards));
+            parsed.forEach(oldCard => {
+              const newId = oldCard.id - 9; // 例: 10 -> 1, 11 -> 2
+              const target = cards.find(c => c.id === newId);
+              if (target) {
+                target.loadedSrc = oldCard.loadedSrc;
+                target.text = oldCard.text;
+                target.emoji = oldCard.emoji;
+                target.isActive = typeof oldCard.isActive !== 'undefined' ? oldCard.isActive : true;
+              }
+            });
+            saveToLocalStorage();
+          } else {
+            // 新規、または既に「1〜8」データがある場合はそのままマージ
+            cards = parsed.map(c => ({
+              ...c,
+              mosaic: typeof c.mosaic !== 'undefined' ? c.mosaic : 0,
+              spotlight: typeof c.spotlight !== 'undefined' ? c.spotlight : false,
+              swirl: typeof c.swirl !== 'undefined' ? c.swirl : 0,
+              loadedSrc: typeof c.loadedSrc !== 'undefined' ? c.loadedSrc : null,
+              isActive: typeof c.isActive !== 'undefined' ? c.isActive : true
+            }));
+          }
+        } catch (e) {
+          cards = JSON.parse(JSON.stringify(defaultCards));
+        }
+      } else {
+        cards = JSON.parse(JSON.stringify(defaultCards));
+      }
+      // 移行チェックは初回起動時のみ行い、以降は id の値に関わらず二度と発動させない
+      localStorage.setItem('english_cards_migrated_v1', 'true');
+
+      // 💡 [改善]: Missing Game（1枚きえる）でどのカードが裏返っているかも保存・復元する
+      try {
+        const savedHidden = localStorage.getItem('english_cards_hidden_v1');
+        if (savedHidden) {
+          hiddenCardIds = new Set(JSON.parse(savedHidden));
+        }
+      } catch (e) {
+        hiddenCardIds = new Set();
+      }
+      
+      renderCards();
+      renderSetupTable();
+      updateActiveCount();
+      updateMosaicAllButtonUI();
+      updateSpotlightAllButtonUI();
+      updateSwirlAllButtonUI();
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    // 💡 Missing Game の状態を保存するヘルパー
+    function saveHiddenState() {
+      try {
+        localStorage.setItem('english_cards_hidden_v1', JSON.stringify(Array.from(hiddenCardIds)));
+      } catch (e) {
+        console.error("Hidden state save failed:", e);
+      }
+    }
+
+    function handleKeyDown(e) {
+      const modal = document.getElementById('zoomModal');
+      if (modal && !modal.classList.contains('hidden')) {
+        if (e.key === 'ArrowRight') {
+          navigateZoom(1);
+        } else if (e.key === 'ArrowLeft') {
+          navigateZoom(-1);
+        } else if (e.key === 'Escape') {
+          closeZoomModal();
+        }
+      }
+    }
+
+    // [容量制限クラッシュ対策]: 保存エラーになってもプログラム全体を絶対にフリーズさせない例外安全化
+    function saveToLocalStorage() {
+      try {
+        localStorage.setItem('english_cards_v2', JSON.stringify(cards));
+      } catch (e) {
+        console.error("LocalStorage save capacity exceeded:", e);
+        showToast("⚠️ 保存容量の制限に達しました！[🧹 登録画像をすべてクリア] で一度リセットしてください。");
+      }
+    }
+
+    // 表示枚数
+    function updateActiveCount() {
+      const activeCount = cards.filter(c => c.isActive).length;
+      const badge = document.getElementById('activeCountBadge');
+      if (badge) badge.innerText = `表示中: ${activeCount}枚`;
+    }
+
+    // 💡 キャッシュ消去関数
+    function clearCacheForCard(cardId) {
+      Object.keys(processedImageCache).forEach(key => {
+        if (key.startsWith(`${cardId}_`) || key === String(cardId)) {
+          delete processedImageCache[key];
+        }
+      });
+    }
+
+    // ⚙️ 設定アコーディオン of トグル開閉処理
+    function toggleSetupPanel() {
+      isSetupOpen = !isSetupOpen;
+      const panel = document.getElementById('setupPanel');
+      const icon = document.getElementById('setupAngleIcon');
+      if (isSetupOpen) {
+        panel.classList.remove('hidden');
+        if (icon) icon.classList.add('rotate-180');
+      } else {
+        panel.classList.add('hidden');
+        if (icon) icon.classList.remove('rotate-180');
+      }
+    }
+
+    // 新しいカードを追加
+    function addNewCard() {
+      const newId = cards.length > 0 ? Math.max(...cards.map(c => c.id)) + 1 : 1;
+      const newCard = {
+        id: newId,
+        img: '',
+        text: 'new phrase',
+        emoji: '✨',
+        isActive: true,
+        loadedSrc: null,
+        mosaic: 0,
+        spotlight: false,
+        swirl: 0
+      };
+      cards.push(newCard);
+      saveToLocalStorage();
+      renderCards();
+      renderSetupTable();
+      updateActiveCount();
+      
+      const tableContainer = document.querySelector('#setupPanel .overflow-x-auto');
+      if (tableContainer) {
+        setTimeout(() => {
+          tableContainer.scrollTop = tableContainer.scrollHeight;
+        }, 50);
+      }
+      showToast("➕ 新しいカードを追加しました！");
+    }
+
+    // カードの設定を編集・保存するヘルパー関数
+    function updateCardData(id, field, value) {
+      const card = cards.find(c => c.id === id);
+      if (card) {
+        card[field] = value;
+        // 💡 [不具合修正]: うずまきエフェクトON中に絵文字を編集すると、古い絵柄で
+        // 生成されたうずまき画像がキャッシュに残ったままになるバグがあったため、
+        // 絵文字変更時はキャッシュを破棄して再生成させるようにしました。
+        if (field === 'emoji') {
+          clearCacheForCard(id);
+        }
+        saveToLocalStorage();
+        debouncedRender();
+      }
+    }
+
+    // カード削除ヘルパー関数
+    function deleteCard(id) {
+      cards = cards.filter(c => c.id !== id);
+      hiddenCardIds.delete(id);
+      saveHiddenState();
+      saveToLocalStorage();
+      renderCards();
+      renderSetupTable();
+      updateActiveCount();
+      showToast("🗑️ カードを削除しました");
+    }
+
+    let renderTimer = null;
+    function debouncedRender() {
+      if (renderTimer) clearTimeout(renderTimer);
+      renderTimer = setTimeout(() => {
+        renderCards();
+        updateActiveCount();
+      }, 500);
+    }
+
+    // 設定テーブル
+    function renderSetupTable() {
+      const tbody = document.getElementById('setupTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      cards.forEach((card) => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-gray-100 hover:bg-gray-50/50 transition";
+
+        tr.innerHTML = `
+          <td class="p-2.5 text-center">
+            <input type="checkbox" ${card.isActive ? 'checked' : ''} 
+              onchange="updateCardData(${card.id}, 'isActive', this.checked); renderCards(); updateActiveCount();"
+              class="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer">
+          </td>
+          <td class="p-2 text-center">
+            ${card.loadedSrc ? `<img src="${card.loadedSrc}" class="w-10 h-10 object-contain rounded border border-gray-200 mx-auto shadow-sm">` : `<span class="text-2xl" id="setupEmoji-${card.id}">${escapeHtml(card.emoji || '❓')}</span>`}
+          </td>
+          <td class="p-2">
+            <input type="text" value="${escapeHtml(card.text)}" oninput="updateCardData(${card.id}, 'text', this.value)" class="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-semibold text-gray-800">
+          </td>
+          <td class="p-2">
+            <input type="text" value="${escapeHtml(card.emoji)}" oninput="updateCardData(${card.id}, 'emoji', this.value); document.getElementById('setupEmoji-${card.id}').innerText = this.value || '❓';" class="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs text-center">
+          </td>
+          <td class="p-2 text-center">
+            <div class="flex items-center justify-center gap-1.5">
+              <button onclick="changeIndividualQuiz(${card.id}, 'mosaic')" class="p-1.5 rounded transition" id="tableMosaicBtn-${card.id}"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+              <button onclick="changeIndividualQuiz(${card.id}, 'spotlight')" class="p-1.5 rounded transition" id="tableSpotBtn-${card.id}"><i data-lucide="aperture" class="w-3.5 h-3.5"></i></button>
+              <button onclick="changeIndividualQuiz(${card.id}, 'swirl')" class="p-1.5 rounded transition" id="tableSwirlBtn-${card.id}"><i data-lucide="wind" class="w-3.5 h-3.5"></i></button>
+            </div>
+          </td>
+          <td class="p-2">
+            <div class="flex items-center gap-1.5">
+              <label class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-2 py-1.5 rounded border border-gray-300 cursor-pointer text-[10px] whitespace-nowrap transition active:scale-95">
+                <span>登録</span>
+                <input type="file" accept="image/*" class="hidden" onchange="handleSingleImageUpload(${card.id}, event)">
+              </label>
+              ${card.loadedSrc ? `<button onclick="clearCardImage(${card.id})" class="text-red-500 hover:text-red-700 p-1"><i data-lucide="x-circle" class="w-4 h-4"></i></button>` : '<span class="text-[10px] text-gray-400">画像なし</span>'}
+            </div>
+          </td>
+          <td class="p-2 text-center">
+            <button onclick="deleteCard(${card.id})" class="text-gray-400 hover:text-red-600 transition p-1"><i data-lucide="trash-2" class="w-4 h-4 mx-auto"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+        updateTableQuizButtonsUI(card);
+      });
+      safeCreateIcons();
+    }
+
+    function updateTableQuizButtonsUI(card) {
+      const mBtn = document.getElementById(`tableMosaicBtn-${card.id}`);
+      const sBtn = document.getElementById(`tableSpotBtn-${card.id}`);
+      const wBtn = document.getElementById(`tableSwirlBtn-${card.id}`);
+      if(mBtn) mBtn.className = `p-1.5 rounded transition ${card.mosaic===1?'bg-yellow-300 text-yellow-800':card.mosaic===2?'bg-orange-500 text-white font-bold':'bg-gray-100 text-gray-400'}`;
+      if(sBtn) sBtn.className = `p-1.5 rounded transition ${card.spotlight?'bg-blue-500 text-white':'bg-gray-100 text-gray-400'}`;
+      if(wBtn) wBtn.className = `p-1.5 rounded transition ${card.swirl===1?'bg-indigo-300 text-indigo-800':card.swirl===2?'bg-purple-600 text-white font-bold':'bg-gray-100 text-gray-400'}`;
+    }
+
+    function changeIndividualQuiz(id, type) {
+      const card = cards.find(c => c.id === id);
+      if(!card) return;
+      if(type === 'mosaic') card.mosaic = (card.mosaic + 1) % 3;
+      if(type === 'swirl') card.swirl = (card.swirl + 1) % 3;
+      if(type === 'spotlight') card.spotlight = !card.spotlight;
+      
+      if(card.mosaic > 0 || card.swirl > 0 || card.spotlight) SoundEngine.playSet();
+      else SoundEngine.playSolve();
+      
+      saveToLocalStorage();
+      renderCards();
+      updateTableQuizButtonsUI(card);
+    }
+
+    // メインカード描画 (通常時は重いCanvas処理を完全バイパスし、100%確実に即座に描画する超爆速設計)
+    function renderCards() {
+      const grid = document.getElementById('cardGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      const activeCards = cards.filter(c => c.isActive);
+
+      if (activeCards.length === 0) {
+        grid.className = "flex flex-col items-center justify-center p-8 text-center w-full";
+        grid.innerHTML = `<div class="bg-white p-6 rounded-2xl border-2 border-dashed border-gray-300 max-w-sm"><span class="text-5xl">👀</span><p class="text-sm font-semibold text-gray-500 mt-4 leading-relaxed">表示するカードがありません。⚙️設定から使うカードを選んでください！</p></div>`;
+        return;
+      }
+
+      const num = activeCards.length;
+      let gridColClass = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'; // スマホ2列、タブレット3列、PC以上最大4列
+
+      if (num === 1) gridColClass = 'grid-cols-1 max-w-sm mx-auto';
+      else if (num === 2) gridColClass = 'grid-cols-2 max-w-2xl mx-auto';
+      else if (num === 3) gridColClass = 'grid-cols-2 sm:grid-cols-3 max-w-4xl mx-auto';
+      else gridColClass = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'; // 何枚表示しても、PC大画面では必ず最大4列までに統一！
+
+      grid.className = `grid gap-4 w-full ${gridColClass}`;
+
+      activeCards.forEach((card) => {
+        const isHidden = hiddenCardIds.has(card.id);
+        
+        // ぼかし(filterStyle)を画像と絵文字を内包する「インナーラッパー(displayWrapper)」のみに適用。
+        // これにより、上部に乗る操作用ボタン群がぼやけてしまう(image_e2c2df.png)バグを完全に根絶します！
+        let filterStyle = card.mosaic === 1 ? 'blur(5px) contrast(1.1) saturate(1.1)' : card.mosaic === 2 ? 'blur(26px) contrast(1.25) saturate(1.2)' : 'none';
+
+        const cardCol = document.createElement('div');
+        cardCol.className = 'perspective aspect-[4/3.5] w-full cursor-pointer touch-manipulation card-transition';
+        cardCol.setAttribute('data-id', card.id);
+
+        const cardInner = document.createElement('div');
+        cardInner.className = `card-inner w-full h-full relative rounded-2xl shadow-md border-4 ${isHidden ? 'border-amber-400 card-flipped' : 'border-white hover:border-green-300'}`;
+        
+        // カードクリックで一発拡大
+        cardInner.onclick = (e) => {
+          if (e.target.closest('button') || e.target.closest('label')) return;
+          zoomCard(card.id);
+        };
+
+        const cardFront = document.createElement('div');
+        cardFront.className = 'card-front absolute inset-0 w-full h-full bg-white rounded-xl overflow-hidden flex flex-col justify-between p-2 backface-visibility-hidden';
+
+        // 枠となる親コンテナ
+        const imgContainer = document.createElement('div');
+        imgContainer.className = 'w-full flex-grow flex items-center justify-center overflow-hidden bg-gray-50 rounded-lg relative transition-all duration-300';
+
+        // ぼかしやスポットライトを適用する、画像・絵文字専用のインナーコンテナ
+        const displayWrapper = document.createElement('div');
+        displayWrapper.className = 'absolute inset-0 w-full h-full flex items-center justify-center transition-all duration-300';
+        displayWrapper.style.filter = filterStyle; // ぼかしはここに適用
+        displayWrapper.style.setProperty('--mouse-x', '50%');
+        displayWrapper.style.setProperty('--mouse-y', '50%');
+        imgContainer.appendChild(displayWrapper);
+
+        const hasSwirl = card.swirl > 0;
+        let contentEl;
+
+        if (hasSwirl) {
+          // ① 渦巻きエフェクトONの時のみ非同期Canvas描画をトリガー（キャッシュ併用）
+          const imgElement = document.createElement('img');
+          imgElement.className = 'max-w-full max-h-full object-contain pointer-events-none transition-all duration-300';
+          displayWrapper.appendChild(imgElement);
+          contentEl = imgElement;
+
+          const cacheKey = `${card.id}_swirl_${card.swirl}_${card.loadedSrc ? 'upload' : 'default'}`;
+          if (processedImageCache[cacheKey]) {
+            imgElement.src = processedImageCache[cacheKey];
+          } else {
+            generateTwirlCanvas(card.loadedSrc, card.emoji, card.swirl, (dataUrl) => {
+              processedImageCache[cacheKey] = dataUrl;
+              imgElement.src = dataUrl;
+            });
+          }
+        } else {
+          // ② 通常時はダイレクトに登録Base64を描画
+          if (card.loadedSrc) {
+            const imgElement = document.createElement('img');
+            imgElement.src = card.loadedSrc;
+            imgElement.alt = card.text;
+            imgElement.className = 'max-w-full max-h-full object-contain pointer-events-none transition-all duration-300';
+            displayWrapper.appendChild(imgElement);
+            contentEl = imgElement;
+          } else {
+            // 画像がない場合は絵文字を即座に表示
+            const emojiWrap = document.createElement('div');
+            emojiWrap.className = 'flex flex-col items-center justify-center text-center p-2 transition-all duration-300';
+            emojiWrap.innerHTML = `<span class="text-4xl md:text-5xl lg:text-6xl select-none block">${escapeHtml(card.emoji || '❓')}</span>`;
+            displayWrapper.appendChild(emojiWrap);
+            contentEl = emojiWrap;
+          }
+        }
+
+        // スポットライトの暗闇（黒い背景色）と丸いくり抜きは、
+        // インナーコンテナ(displayWrapper)のみに適用することで、ボタンが暗闇に消えてしまう(image_e2c01c.png)現象を完璧に防止！
+        if (card.spotlight && !isHidden && contentEl) {
+          displayWrapper.style.backgroundColor = '#111827';
+          contentEl.style.clipPath = 'circle(35px at var(--mouse-x, 50%) var(--mouse-y, 50%))';
+          const moveHandler = (e) => {
+            const rect = displayWrapper.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            displayWrapper.style.setProperty('--mouse-x', `${((clientX - rect.left) / rect.width) * 100}%`);
+            displayWrapper.style.setProperty('--mouse-y', `${((clientY - rect.top) / rect.height) * 100}%`);
+          };
+          imgContainer.addEventListener('mousemove', moveHandler);
+          imgContainer.addEventListener('touchmove', moveHandler);
+        }
+
+        // ボタンはぼかしや黒背景の「外側」となる最前面レイヤーとして imgContainer 直下にインジェクション
+        const buttonsHTML = `
+          <div class="absolute inset-0 w-full h-full pointer-events-none z-20">
+            <button onclick="event.stopPropagation(); changeIndividualQuiz(${card.id}, 'mosaic')" class="pointer-events-auto absolute top-1.5 p-1.5 rounded-full shadow border transition active:scale-90 ${card.mosaic===1?'bg-yellow-400 text-yellow-900 border-yellow-500':card.mosaic===2?'bg-orange-500 text-white border-orange-600 animate-pulse':'bg-white/90 text-gray-500 border-gray-200'}" style="left: 6px;"><i data-lucide="eye" class="w-3.5 h-3.5"></i></button>
+            <button onclick="event.stopPropagation(); changeIndividualQuiz(${card.id}, 'spotlight')" class="pointer-events-auto absolute top-1.5 p-1.5 rounded-full shadow border transition active:scale-90 ${card.spotlight?'bg-blue-500 text-white border-blue-600 animate-pulse':'bg-white/90 text-gray-500 border-gray-200'}" style="left: 38px;"><i data-lucide="aperture" class="w-3.5 h-3.5"></i></button>
+            <button onclick="event.stopPropagation(); changeIndividualQuiz(${card.id}, 'swirl')" class="pointer-events-auto absolute top-1.5 p-1.5 rounded-full shadow border transition active:scale-90 ${card.swirl===1?'bg-indigo-400 text-white border-indigo-500':card.swirl===2?'bg-purple-600 text-white border-purple-700 animate-pulse':'bg-white/90 text-gray-500 border-gray-200'}" style="left: 70px;"><i data-lucide="wind" class="w-3.5 h-3.5"></i></button>
+            <button onclick="event.stopPropagation(); zoomCard(${card.id})" class="pointer-events-auto absolute top-1.5 right-11 bg-blue-100 text-blue-700 p-2 rounded-full shadow border border-blue-200 opacity-90 hover:opacity-100"><i data-lucide="zoom-in" class="w-4 h-4"></i></button>
+            <button onclick="event.stopPropagation(); speakCard(${card.id})" class="pointer-events-auto absolute top-1.5 right-1.5 bg-green-100 text-green-700 p-2 rounded-full shadow border border-green-200 opacity-90 hover:opacity-100"><i data-lucide="volume-2" class="w-4 h-4"></i></button>
+          </div>
+        `;
+        imgContainer.insertAdjacentHTML('beforeend', buttonsHTML);
+
+        const textContainer = document.createElement('div');
+        textContainer.className = `text-center mt-1.5 py-1 px-2 rounded bg-green-50 ${showText ? '' : 'hidden'}`;
+        textContainer.innerHTML = `<span class="text-green-900 font-bold text-sm md:text-base lg:text-lg block truncate">${escapeHtml(card.text)}</span>`;
+
+        cardFront.appendChild(imgContainer);
+        cardFront.appendChild(textContainer);
+
+        const cardBack = document.createElement('div');
+        cardBack.className = 'card-back absolute inset-0 w-full h-full bg-gradient-to-br from-amber-300 to-yellow-500 rounded-xl flex flex-col items-center justify-center p-4 backface-visibility-hidden shadow-inner';
+        cardBack.innerHTML = `<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md border-4 border-amber-400 animate-bounce"><span class="text-amber-500 text-3xl font-black">?</span></div><span class="text-amber-900 text-[10px] font-bold mt-2 bg-amber-100/85 px-2.5 py-0.5 rounded-full">What's missing?</span>`;
+
+        cardInner.appendChild(cardFront); cardInner.appendChild(cardBack);
+        cardCol.appendChild(cardInner); grid.appendChild(cardCol);
+      });
+
+      safeCreateIcons();
+    }
+
+    // 拡大（ズームイン）
+    function zoomCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      currentZoomCardId = id; 
+
+      const modal = document.getElementById('zoomModal');
+      const modalContent = modal ? modal.querySelector('div') : null;
+      const zoomImg = document.getElementById('zoomImg');
+      const zoomContentWrapper = document.getElementById('zoomContentWrapper'); // インナー表示枠
+      const zoomEmojiContainer = document.getElementById('zoomEmojiContainer');
+      const zoomEmoji = document.getElementById('zoomEmoji');
+      const zoomText = document.getElementById('zoomText');
+      const zoomSpeakBtn = document.getElementById('zoomSpeakBtn');
+      const zoomSpotlightGuide = document.getElementById('zoomSpotlightGuide');
+      const zoomTextContainer = document.getElementById('zoomTextContainer');
+      const zoomSolveBtn = document.getElementById('zoomSolveBtn');
+
+      const isQuizState = card.mosaic > 0 || card.spotlight || card.swirl > 0;
+      if (isQuizState) {
+        if (zoomTextContainer) zoomTextContainer.classList.add('hidden');
+        if (zoomSolveBtn) zoomSolveBtn.classList.remove('hidden'); 
+      } else {
+        if (zoomTextContainer) {
+          zoomTextContainer.classList.remove('hidden');
+          if (zoomText) zoomText.innerText = card.text;
+        }
+        if (zoomSolveBtn) zoomSolveBtn.classList.add('hidden'); 
+      }
+
+      // インナー表示枠にのみぼかしを適用！(コンテナ全体のぼかしを完全に防止)
+      let filterStyle = card.mosaic === 1 ? 'blur(8px) contrast(1.1) saturate(1.1)' : card.mosaic === 2 ? 'blur(40px) contrast(1.25) saturate(1.2)' : 'none';
+      if (zoomContentWrapper) {
+        zoomContentWrapper.style.filter = filterStyle;
+      }
+
+      const hasSwirl = card.swirl > 0;
+
+      const applyZoomContent = (srcUrl) => {
+        if (card.loadedSrc) {
+          zoomImg.src = srcUrl; 
+          zoomImg.classList.remove('hidden'); 
+          zoomEmojiContainer.classList.add('hidden');
+        } else {
+          zoomImg.classList.add('hidden'); 
+          zoomEmojiContainer.classList.remove('hidden');
+          
+          if (hasSwirl) {
+            zoomEmoji.style.backgroundImage = `url(${srcUrl})`; 
+            zoomEmoji.style.backgroundSize = 'contain';
+            zoomEmoji.style.backgroundPosition = 'center';
+            zoomEmoji.style.backgroundRepeat = 'no-repeat';
+            zoomEmoji.style.width = '240px'; 
+            zoomEmoji.style.height = '240px'; 
+            zoomEmoji.style.display = 'inline-block'; 
+            zoomEmoji.innerText = '';
+          } else {
+            zoomEmoji.style.backgroundImage = '';
+            zoomEmoji.style.width = '';
+            zoomEmoji.style.height = '';
+            zoomEmoji.style.display = 'block';
+            zoomEmoji.innerText = card.emoji || '❓';
+          }
+        }
+
+        const activeZoomContent = card.loadedSrc ? zoomImg : zoomEmoji;
+        if (card.spotlight && activeZoomContent && zoomContentWrapper) {
+          // スポットライトの暗闇は操作ボタンの裏側(zoomContentWrapper)のみに適用
+          zoomContentWrapper.style.backgroundColor = '#111827';
+          if (zoomSpotlightGuide) zoomSpotlightGuide.classList.remove('hidden');
+          activeZoomContent.style.clipPath = 'circle(70px at var(--mouse-x, 50%) var(--mouse-y, 50%))';
+          
+          const moveHandler = (e) => {
+            const rect = zoomContentWrapper.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            zoomContentWrapper.style.setProperty('--mouse-x', `${((clientX - rect.left) / rect.width) * 100}%`);
+            zoomContentWrapper.style.setProperty('--mouse-y', `${((clientY - rect.top) / rect.height) * 100}%`);
+          };
+          const zoomImgContainer = document.getElementById('zoomImgContainer');
+          zoomImgContainer.onmousemove = moveHandler;
+          zoomImgContainer.ontouchmove = moveHandler;
+          zoomContentWrapper.style.setProperty('--mouse-x', '50%');
+          zoomContentWrapper.style.setProperty('--mouse-y', '50%');
+        } else {
+          if (zoomContentWrapper) zoomContentWrapper.style.backgroundColor = '';
+          if (zoomSpotlightGuide) zoomSpotlightGuide.classList.add('hidden');
+          if (activeZoomContent) activeZoomContent.style.clipPath = '';
+          const zoomImgContainer = document.getElementById('zoomImgContainer');
+          if (zoomImgContainer) {
+            zoomImgContainer.onmousemove = null; 
+            zoomImgContainer.ontouchmove = null;
+          }
+        }
+      };
+
+      if (hasSwirl) {
+        const cacheKey = `${card.id}_swirl_${card.swirl}_${card.loadedSrc ? 'upload' : 'default'}`;
+        if (processedImageCache[cacheKey]) {
+          applyZoomContent(processedImageCache[cacheKey]);
+        } else {
+          generateTwirlCanvas(card.loadedSrc, card.emoji, card.swirl, (dataUrl) => {
+            processedImageCache[cacheKey] = dataUrl;
+            applyZoomContent(dataUrl);
+          });
+        }
+      } else {
+        applyZoomContent(card.loadedSrc || '');
+      }
+
+      zoomSpeakBtn.onclick = () => speakCard(card.id);
+      zoomSolveBtn.onclick = () => {
+        card.mosaic = 0; card.swirl = 0; card.spotlight = false;
+        saveToLocalStorage(); SoundEngine.playSolve(); 
+        zoomCard(card.id); renderCards(); renderSetupTable();
+      };
+
+      modal.classList.remove('hidden');
+      setTimeout(() => { 
+        modal.classList.remove('opacity-0'); 
+        modalContent.classList.remove('scale-95'); 
+        modalContent.classList.add('scale-100'); 
+      }, 10);
+      safeCreateIcons();
+    }
+
+    function cycleMosaicAll() {
+      mosaicLevel = (mosaicLevel + 1) % 3;
+      cards.forEach(c => c.mosaic = mosaicLevel);
+      if (mosaicLevel > 0) SoundEngine.playSet(); else SoundEngine.playSolve();
+      saveToLocalStorage(); updateMosaicAllButtonUI(); renderCards(); renderSetupTable();
+    }
+    function updateMosaicAllButtonUI() {
+      const btn = document.getElementById('mosaicBtn'); const lbl = document.getElementById('mosaicLabel');
+      if (mosaicLevel === 0) { btn.className = "flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl text-xs md:text-sm border shadow-sm"; lbl.innerText = "一括モザイク：なし"; }
+      else if (mosaicLevel === 1) { btn.className = "flex items-center gap-2 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-xl text-xs md:text-sm border border-yellow-300 shadow-sm"; lbl.innerText = "一括モザイク：よわい"; }
+      else { btn.className = "flex items-center gap-2 bg-orange-500 text-white px-3 py-1.5 rounded-xl text-xs md:text-sm border border-orange-600 shadow-sm animate-pulse"; lbl.innerText = "一括モザイク：つよい"; }
+    }
+    function toggleSpotlightAll() {
+      isSpotlight = !isSpotlight; cards.forEach(c => c.spotlight = isSpotlight);
+      if (isSpotlight) SoundEngine.playSet(); else SoundEngine.playSolve();
+      saveToLocalStorage(); updateSpotlightAllButtonUI(); renderCards(); renderSetupTable();
+    }
+    function updateSpotlightAllButtonUI() {
+      const btn = document.getElementById('spotlightBtn'); const lbl = document.getElementById('spotlightLabel');
+      if (isSpotlight) { btn.className = "flex items-center gap-2 bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs md:text-sm border border-blue-600 shadow-sm animate-pulse"; lbl.innerText = "一括スポット：ON"; }
+      else { btn.className = "flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl text-xs md:text-sm border shadow-sm"; lbl.innerText = "一括スポット：OFF"; }
+    }
+    function cycleSwirlAll() {
+      swirlLevel = (swirlLevel + 1) % 3; cards.forEach(c => c.swirl = swirlLevel);
+      if (swirlLevel > 0) SoundEngine.playSet(); else SoundEngine.playSolve();
+      saveToLocalStorage(); updateSwirlAllButtonUI(); renderCards(); renderSetupTable();
+    }
+    function updateSwirlAllButtonUI() {
+      const btn = document.getElementById('swirlBtn'); const lbl = document.getElementById('swirlLabel');
+      if (swirlLevel === 0) { btn.className = "flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl text-xs md:text-sm border shadow-sm"; lbl.innerText = "一括うずまき：なし"; }
+      else if (swirlLevel === 1) { btn.className = "flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl text-xs md:text-sm border border-indigo-300 shadow-sm"; lbl.innerText = "一括うずまき：よわい"; }
+      else { btn.className = "flex items-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-xl text-xs md:text-sm border border-purple-700 shadow-sm animate-pulse"; lbl.innerText = "一括うずまき：つよい"; }
+    }
+
+    // 🎲 「クイズよわい」にした時にエフェクトがどこにもかからず丸見えになるカードを完璧に無くす！
+    function randomizeAllEffects(diff) {
+      cards.forEach(c => {
+        if (c.isActive) {
+          if (diff === 1) {
+            // クイズよわい
+            // 最低でもどれか1つの効果が必ず有効（エフェクトなしを防止）に強制適用
+            let mosaic = Math.random() < 0.5 ? 1 : 0;
+            let swirl = Math.random() < 0.5 ? 1 : 0;
+            let spotlight = Math.random() < 0.2;
+
+            if (mosaic === 0 && swirl === 0 && !spotlight) {
+              const r = Math.floor(Math.random() * 3);
+              if (r === 0) mosaic = 1;
+              else if (r === 1) swirl = 1;
+              else spotlight = true;
+            }
+
+            c.mosaic = mosaic;
+            c.swirl = swirl;
+            c.spotlight = spotlight;
+          } else {
+            // クイズつよい
+            let mosaic = Math.random() < 0.4 ? 1 : 2;
+            let swirl = Math.random() < 0.4 ? 1 : 2;
+            let spotlight = Math.random() < 0.45;
+
+            c.mosaic = mosaic;
+            c.swirl = swirl;
+            c.spotlight = spotlight;
+          }
+        }
+      });
+      try {
+        SoundEngine.playSet();
+      } catch(e){}
+      saveToLocalStorage(); 
+      renderCards(); 
+      renderSetupTable();
+      showToast(diff === 1 ? "🎲 「よわい」クイズエフェクトを漏れなくセットしました！" : "🎲 「つよい」クイズエフェクトを強力にセットしました！");
+    }
+
+    function shuffleCards() {
+      let active = cards.filter(c => c.isActive);
+      for (let i = active.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [active[i], active[j]] = [active[j], active[i]]; }
+      let idx = 0; cards = cards.map(c => c.isActive ? active[idx++] : c);
+      SoundEngine.playSet(); saveToLocalStorage(); renderCards();
+    }
+    function hideRandomCard() {
+      const visible = cards.filter(c => c.isActive && !hiddenCardIds.has(c.id));
+      if (visible.length === 0) return;
+      hiddenCardIds.add(visible[Math.floor(Math.random() * visible.length)].id);
+      saveHiddenState();
+      SoundEngine.playSet(); renderCards();
+    }
+    function resetAllCards() {
+      hiddenCardIds.clear(); cards.forEach(c => { c.mosaic = 0; c.spotlight = false; c.swirl = 0; });
+      mosaicLevel = 0; isSpotlight = false; swirlLevel = 0;
+      updateMosaicAllButtonUI(); updateSpotlightAllButtonUI(); updateSwirlAllButtonUI();
+      saveToLocalStorage(); saveHiddenState(); SoundEngine.playSolve(); renderCards(); renderSetupTable();
+    }
+    function toggleTextVisibility() {
+      showText = !showText;
+      const btn = document.getElementById('textToggleBtn'); const lbl = document.getElementById('textToggleLabel');
+      if (showText) { btn.className = "flex items-center gap-2 bg-purple-100 text-purple-700 font-bold px-5 py-3.5 rounded-xl border-2 border-purple-300 text-sm md:text-base"; lbl.innerText = "文字：だす"; SoundEngine.playSolve(); }
+      else { btn.className = "flex items-center gap-2 bg-gray-100 text-gray-500 font-bold px-5 py-3.5 rounded-xl border-2 text-sm md:text-base"; lbl.innerText = "文字：かくす"; SoundEngine.playSet(); }
+      renderCards();
+    }
+    function navigateZoom(dir) {
+      const active = cards.filter(c => c.isActive); if (active.length <= 1) return;
+      let idx = active.findIndex(c => c.id === currentZoomCardId);
+      idx = (idx + dir + active.length) % active.length;
+      zoomCard(active[idx].id);
+    }
+    // 💡 [修正]: クローズ処理で徐々にフェードアウトしてから完全に隠すアニメーション制御を実装
+    function closeZoomModal() { 
+      const modal = document.getElementById('zoomModal');
+      const modalContent = modal ? modal.querySelector('div') : null;
+      if (modal && modalContent) {
+        modalContent.classList.remove('scale-100');
+        modalContent.classList.add('scale-95');
+        modal.classList.add('opacity-0');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 300); // 300msのTransition時間
+      }
+      currentZoomCardId = null; 
+    }
+
+    // 💡 安全な読み上げ呼び出し関数
+    function speakCard(id) {
+      const card = cards.find(c => c.id === id);
+      if (card && card.text) {
+        speak(card.text);
+      }
+    }
+
+    // 🖼 [新機能] 画像の一括登録（複数ファイルを一度に選んで、カードの並び順に自動セット）
+    function handleBulkImageUpload(event) {
+      const files = Array.from(event.target.files || []);
+      if (files.length === 0) return;
+
+      if (cards.length === 0) {
+        showToast("⚠️ カードが1枚もありません。先にカードを追加してください。");
+        event.target.value = '';
+        return;
+      }
+
+      const targets = cards.slice(0, files.length);
+      const skipped = files.length - targets.length;
+
+      if (!confirm(`選んだ ${files.length}枚の画像を、カードの上から順番に${targets.length}枚分セットします。\n既に登録されている写真は上書きされます。よろしいですか？`)) {
+        event.target.value = '';
+        return;
+      }
+
+      showToast("📸 画像を一括登録中...しばらくお待ちください");
+
+      let doneCount = 0;
+      let successCount = 0;
+      targets.forEach((card, idx) => {
+        resizeAndCompressImage(files[idx], function(compressedBase64) {
+          if (compressedBase64) {
+            card.loadedSrc = compressedBase64;
+            clearCacheForCard(card.id);
+            successCount++;
+          }
+          doneCount++;
+          if (doneCount === targets.length) {
+            saveToLocalStorage();
+            renderCards();
+            renderSetupTable();
+            let msg = `📸 ${successCount}枚の画像を一括登録しました！`;
+            if (skipped > 0) msg += `（カード数が足りず ${skipped}枚は未登録です）`;
+            showToast(msg);
+          }
+        });
+      });
+
+      // 同じファイルを選び直せるようにリセット
+      event.target.value = '';
+    }
+
+    // 💡 個別画像登録（どんな写真・形式・名前でも確実に圧縮＆保存）
+    function handleSingleImageUpload(cardId, event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      resizeAndCompressImage(file, function(compressedBase64) {
+        if (compressedBase64) {
+          const card = cards.find(c => c.id === cardId);
+          if (card) {
+            card.loadedSrc = compressedBase64;
+            clearCacheForCard(cardId);
+            saveToLocalStorage();
+            renderCards();
+            renderSetupTable();
+            showToast(`📸 「${card.text}」に軽量圧縮写真をセットしました！`);
+          }
+        }
+      });
+      // 同じ画像を再選択できるようにリセット
+      event.target.value = '';
+    }
+
+    // 個別画像削除
+    function clearCardImage(cardId) {
+      const card = cards.find(c => c.id === cardId);
+      if (card) {
+        card.loadedSrc = null;
+        clearCacheForCard(cardId);
+        saveToLocalStorage();
+        renderCards();
+        renderSetupTable();
+        showToast("🗑️ 個別画像を削除しました（絵文字表示になります）");
+      }
+    }
+
+    // 🧹 登録したすべての写真データを完全に消去し、初期絵文字に戻す関数
+    function clearAllRegisteredImages() {
+      if (confirm("登録したすべての写真データを完全に消去し、初期の絵文字カードに戻します。よろしいですか？（テキストや追加したカード情報は消えません）")) {
+        // すべてのキャッシュと画像情報を削除
+        cards.forEach(card => {
+          card.loadedSrc = null;
+          clearCacheForCard(card.id);
+        });
+
+        // キャッシュオブジェクト自体の全消去（念のための完璧な対策）
+        Object.keys(processedImageCache).forEach(key => delete processedImageCache[key]);
+        
+        saveToLocalStorage();
+        try {
+          SoundEngine.playSolve(); // チャイム音
+        } catch(se){}
+        
+        renderCards();
+        renderSetupTable();
+        
+        showToast("🧹 登録されたすべての写真データをクリアしました！");
+      }
+    }
+
+    // 🌀 本格的なうずまき用キャンバスの描画生成エンジン
+    function generateTwirlCanvas(imageSrc, emojiText, swirlLevel, callback) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 400;
+      canvas.height = 400;
+
+      const drawBaseContent = (onReady) => {
+        if (imageSrc) {
+          const img = new Image();
+          img.onload = () => {
+            const hRatio = canvas.width / img.width;
+            const vRatio = canvas.height / img.height;
+            const ratio  = Math.min(hRatio, vRatio);
+            const centerShift_x = (canvas.width - img.width * ratio) / 2;
+            const centerShift_y = (canvas.height - img.height * ratio) / 2;  
+            ctx.fillStyle = "#f9fafb";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, img.width, img.height,
+                               centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
+            onReady();
+          };
+          img.onerror = () => {
+            ctx.fillStyle = "#f3f4f6";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = "180px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🖼️", 200, 200);
+            onReady();
+          };
+          img.src = imageSrc;
+        } else {
+          ctx.fillStyle = "#f9fafb";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.font = "200px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(emojiText || "❓", 200, 200);
+          onReady();
+        }
+      };
+
+      drawBaseContent(() => {
+        if (swirlLevel === 0) {
+          callback(canvas.toDataURL());
+          return;
+        }
+
+        const width = canvas.width;
+        const height = canvas.height;
+        const srcData = ctx.getImageData(0, 0, width, height);
+        const dstData = ctx.createImageData(width, height);
+        
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const maxRadius = Math.min(width, height) * 0.5;
+        
+        const maxAngle = swirlLevel === 1 ? 4.5 : 10.0;
+
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const r = Math.sqrt(dx * dx + dy * dy);
+            const dstIdx = (y * width + x) * 4;
+
+            if (r < maxRadius) {
+              const factor = (maxRadius - r) / maxRadius;
+              const angle = maxAngle * factor * factor; 
+              const cosA = Math.cos(angle);
+              const sinA = Math.sin(angle);
+              
+              const srcX = Math.round(centerX + dx * cosA - dy * sinA);
+              const srcY = Math.round(centerY + dx * sinA + dy * cosA);
+              
+              if (srcX >= 0 && srcX < width && srcY >= 0 && srcY < height) {
+                const srcIdx = (srcY * width + srcX) * 4;
+                dstData.data[dstIdx]     = srcData.data[srcIdx];
+                dstData.data[dstIdx + 1] = srcData.data[srcIdx + 1];
+                dstData.data[dstIdx + 2] = srcData.data[srcIdx + 2];
+                dstData.data[dstIdx + 3] = srcData.data[srcIdx + 3];
+              } else {
+                dstData.data[dstIdx]     = 249;
+                dstData.data[dstIdx + 1] = 250;
+                dstData.data[dstIdx + 2] = 251;
+                dstData.data[dstIdx + 3] = 255;
+              }
+            } else {
+              dstData.data[dstIdx]     = srcData.data[dstIdx];
+              dstData.data[dstIdx + 1] = srcData.data[dstIdx + 1];
+              dstData.data[dstIdx + 2] = srcData.data[dstIdx + 2];
+              dstData.data[dstIdx + 3] = srcData.data[dstIdx + 3];
+            }
+          }
+        }
+        ctx.putImageData(dstData, 0, 0);
+        callback(canvas.toDataURL());
+      });
+    }
+
+    // showToast 関数を完璧に定義
+    function showToast(m) {
+      const t = document.getElementById('toast');
+      const text = document.getElementById('toastText');
+      if (t && text) {
+        text.innerText = m;
+        t.classList.remove('opacity-0');
+        t.classList.add('opacity-100');
+        setTimeout(() => {
+          t.classList.remove('opacity-100');
+          t.classList.add('opacity-0');
+        }, 2500);
+      }
+    }
+
+    // setAllActive 関数を完璧に定義
+    function setAllActive(active) {
+      // 💡 [改善]: 誤クリックで一瞬にして全カードが消えてしまわないよう、
+      // 「すべて非表示」の時だけ確認ダイアログを挟むようにしました。
+      if (!active && !confirm("表示中のカードをすべて非表示にします。よろしいですか？")) {
+        return;
+      }
+      cards.forEach(c => c.isActive = active);
+      saveToLocalStorage();
+      renderCards();
+      renderSetupTable();
+      updateActiveCount();
+      showToast(active ? "✨ すべてのカードを表示しました" : "👁️ すべてのカードを非表示にしました");
+    }
+
+    // resetToDefaultData (初期設定に戻す) 関数を完璧に定義
+    function resetToDefaultData() {
+      if (confirm("カードのテキストや設定をすべて最初の状態（8枚）に戻します。よろしいですか？")) {
+        cards = JSON.parse(JSON.stringify(defaultCards));
+        Object.keys(processedImageCache).forEach(key => delete processedImageCache[key]);
+        saveToLocalStorage();
+        renderCards();
+        renderSetupTable();
+        updateActiveCount();
+        showToast("🔄 初期状態に戻しました！");
+      }
+    }
+
+    // 音声読み上げ
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.85;
+        utterance.pitch = 1.1;
+        window.speechSynthesis.speak(utterance);
+      } else {
+        showToast("🔊 お使いの環境は読み上げに対応していません");
+      }
+    }
+
+    // 順番によむ
+    function playAllAudios() {
+      const activeCards = cards.filter(c => c.isActive);
+      if (activeCards.length === 0) return;
+      if (!('speechSynthesis' in window)) {
+        showToast("🔊 音声非対応です");
+        return;
+      }
+      window.speechSynthesis.cancel();
+      showToast("📢 順番に読み上げます...");
+
+      let i = 0;
+      function speakNext() {
+        if (i < activeCards.length) {
+          const currentCard = activeCards[i];
+          const cardElement = document.querySelector(`[data-id="${currentCard.id}"]`);
+          if (cardElement) {
+            cardElement.classList.add('scale-105', 'ring-4', 'ring-pink-400', 'z-10');
+          }
+          // 💡 [不具合修正]: 以前は speak() を呼んだ直後にさらに独自の utterance も
+          // キューに追加していたため、同じフレーズが1枚につき2回連続で読み上げられて
+          // いました。読み上げ終了イベント(onend)が必要なため、utterance は1つだけ
+          // 生成してそのまま使うように修正しています。
+          const utterance = new SpeechSynthesisUtterance(currentCard.text);
+          utterance.lang = 'en-US';
+          utterance.rate = 0.85;
+          utterance.pitch = 1.1;
+          utterance.onend = () => {
+            if (cardElement) {
+              cardElement.classList.remove('scale-105', 'ring-4', 'ring-pink-400', 'z-10');
+            }
+            i++;
+            setTimeout(speakNext, 300);
+          };
+          window.speechSynthesis.speak(utterance);
+        } else {
+          showToast("✅ 読み上げが終わりました！");
+        }
+      }
+      speakNext();
+    }
+
+    window.onload = () => { initApp(); };
+  </script>
+</body>
+</html>
