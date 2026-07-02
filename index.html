@@ -245,18 +245,18 @@
       <i data-lucide="chevron-left" class="w-8 h-8 md:w-10 md:h-10"></i>
     </button>
 
-    <div class="bg-white rounded-3xl p-6 max-w-2xl w-[88%] max-h-[92vh] flex flex-col justify-between shadow-2xl relative transform scale-95 transition-all duration-300" onclick="event.stopPropagation()">
+    <div class="bg-white rounded-3xl p-6 max-w-4xl w-[94%] max-h-[94vh] flex flex-col justify-between shadow-2xl relative transform scale-95 transition-all duration-300" onclick="event.stopPropagation()">
       <!-- 💡 [不具合修正]: 重なり順(z-index)を z-30 に引き上げ、さらにバブリング防止を追加したことで、確実に一発で閉じられるように改善しました！ -->
       <button onclick="closeZoomModal(); event.stopPropagation();" class="absolute -top-3 -right-3 md:top-4 md:right-4 bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full shadow-lg transition active:scale-90 z-30">
         <i data-lucide="x" class="w-6 h-6"></i>
       </button>
       
       <!-- 画像・絵文字コンテナ (ボタン類が暗闇やボケに巻き込まれない最前面レイヤー構造に再設計) -->
-      <div id="zoomImgContainer" class="w-full flex-grow flex items-center justify-center overflow-hidden bg-gray-50 rounded-2xl p-4 min-h-[280px] md:min-h-[380px] relative transition-colors duration-300">
+      <div id="zoomImgContainer" class="w-full flex-grow flex items-center justify-center overflow-hidden bg-gray-50 rounded-2xl p-4 min-h-[360px] md:min-h-[480px] relative transition-colors duration-300">
         
         <!-- 💡 映像コンテンツ専用ラッパー (このエリアにだけボケやスポットライトの背景黒を適用) -->
         <div id="zoomContentWrapper" class="absolute inset-0 w-full h-full flex items-center justify-center transition-all duration-300 z-10">
-          <img id="zoomImg" src="" alt="" class="max-w-full max-h-[50vh] object-contain rounded-lg hidden transition-all duration-300 card-transition">
+          <img id="zoomImg" src="" alt="" class="w-full h-full object-contain rounded-lg hidden transition-all duration-300 card-transition">
           <div id="zoomEmojiContainer" class="text-center hidden transition-all duration-300 card-transition">
             <span id="zoomEmoji" class="text-8xl md:text-9xl block animate-pulse select-none transition-all duration-300"></span>
           </div>
@@ -895,9 +895,17 @@
         if (zoomTextContainer) zoomTextContainer.classList.add('hidden');
         if (zoomSolveBtn) zoomSolveBtn.classList.remove('hidden'); 
       } else {
+        // 💡 [不具合修正]: 以前は拡大表示時に「文字：かくす」の設定を無視して
+        // 常にフレーズを表示していたため、絵だけで練習させたい時にカードを
+        // クリックすると答えが見えてしまうバグがありました。
+        // グローバルの showText 設定を尊重するように修正しています。
         if (zoomTextContainer) {
-          zoomTextContainer.classList.remove('hidden');
-          if (zoomText) zoomText.innerText = card.text;
+          if (showText) {
+            zoomTextContainer.classList.remove('hidden');
+            if (zoomText) zoomText.innerText = card.text;
+          } else {
+            zoomTextContainer.classList.add('hidden');
+          }
         }
         if (zoomSolveBtn) zoomSolveBtn.classList.add('hidden'); 
       }
@@ -924,8 +932,8 @@
             zoomEmoji.style.backgroundSize = 'contain';
             zoomEmoji.style.backgroundPosition = 'center';
             zoomEmoji.style.backgroundRepeat = 'no-repeat';
-            zoomEmoji.style.width = '240px'; 
-            zoomEmoji.style.height = '240px'; 
+            zoomEmoji.style.width = '320px'; 
+            zoomEmoji.style.height = '320px'; 
             zoomEmoji.style.display = 'inline-block'; 
             zoomEmoji.innerText = '';
           } else {
@@ -1099,6 +1107,10 @@
       if (showText) { btn.className = "flex items-center gap-2 bg-purple-100 text-purple-700 font-bold px-5 py-3.5 rounded-xl border-2 border-purple-300 text-sm md:text-base"; lbl.innerText = "文字：だす"; SoundEngine.playSolve(); }
       else { btn.className = "flex items-center gap-2 bg-gray-100 text-gray-500 font-bold px-5 py-3.5 rounded-xl border-2 text-sm md:text-base"; lbl.innerText = "文字：かくす"; SoundEngine.playSet(); }
       renderCards();
+      // 💡 拡大表示（ズームモーダル）を開いたまま切り替えた場合も、その場で反映させる
+      if (currentZoomCardId !== null) {
+        zoomCard(currentZoomCardId);
+      }
     }
     function navigateZoom(dir) {
       const active = cards.filter(c => c.isActive); if (active.length <= 1) return;
